@@ -23,7 +23,7 @@ process = tap.extract(complicatedExpression, (tap.T1, tap.T2, tap.T3));
 ```
 Each tap.T1, tap.T2, etc functions as a named !, i.e. has one input and zero outputs. When an expression is wrapped with tap.extract, the inputs to the T's get routed to the outputs of the expression (after any existing outputs).
 
-In the above example, `complicatedExpression` has four inputs and zero outputs. Extracting the three taps (tap.T1, tap.T2, tap.T3) means that `process` will have four inputs and three outputs (in the same order as the second argument to tap.extract).
+In the above example, `complicatedExpression` has four inputs and zero outputs. Extracting the three taps (tap.T1, tap.T2, tap.T3) means that `process` will have four inputs and three outputs (in the same order as the second argument to tap.extract). Scroll down to the bottom to see the generated block diagram.
 
 #### Limitations
 
@@ -60,3 +60,6 @@ process = tap.extract(
 #### Block diagram
 
 The resulting block diagram can potentially be quite visually messy, so when developing, consider developing the expression without the final `tap.extract` and then include it only once you have the rest working.
+
+This is the block diagram for the first example on this page:
+![Block diagram for extracted complicatedExpression](./sample.svg)
