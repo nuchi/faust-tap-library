@@ -1,0 +1,212 @@
+/*
+MIT License
+
+Copyright (c) 2022 Haggai Nuchi
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+declare name "Tap Library";
+declare author "Haggai Nuchi";
+declare license "MIT";
+declare version "0.1";
+
+//-------------------------------`(tap.)extract`-------------------------------
+//
+// Tap a complicated expression to pull out specific outputs, without having to
+// manually route those outputs, just like how named function parameters remove
+// the need to manually route inputs.
+//
+// #### Usage
+//
+// ```
+// A(k) = *(k);
+//
+// complicatedExpression = _,_,_,_ : (
+//         (A(1) <: _,tap.T1),
+//          A(2),
+//          A(3),
+//         (A(4) <: _,tap.T2),
+//          A(5)
+//     ) ~ (_,_,_,_,_ :> _ <: _,tap.T3)
+//       : si.block(5)
+//       ;
+// process = tap.extract(complicatedExpression, (tap.T1, tap.T2, tap.T3));
+// ```
+//
+// Each tap.T1, tap.T2, etc functions as a named !, i.e. has one input and zero
+// outputs. When an expression is wrapped with tap.extract, the inputs to the T's
+// get routed to the outputs of the expression (after any existing outputs).
+//
+// In the above example, `complicatedExpression` has four inputs and zero outputs.
+// Extracting the three taps (tap.T1, tap.T2, tap.T3) means that `process` will
+// have four inputs and three outputs (in the same order as the second argument to
+// tap.extract).
+//
+// #### Limitations
+//
+// There are up to 9 taps available per `tap.extract` call, i.e. `tap.T1`,
+// `tap.T2`, and up through `tap.T9`. There's no reason to have to stop at 9,
+// except that each involves manual code duplication so I chose that point
+// arbitrarily. They can be duplicated across different `tap.extract` calls.
+//
+// Each tap can only take a single wire input, i.e. does not handle a bus of more
+// than one signal.
+//
+// Some kinds of Faust expressions can't be extracted through. Functions with
+// parameters are opaque to tap.extract, and likewise hgroup/vgroup/tgroup, so the
+// following don't work:
+//
+// ```
+// A(x, y, z) = x + y + z : tap.T1;
+// process = tap.extract(A, tap.T1); // Doesn't work
+//
+// process = tap.extract(
+//     hgroup("foo", (hslider("bar", 0, 0, 1, 1) : tap.T1)),
+//     tap.T1
+// ); // Doesn't work
+// ```
+//
+// But these workarounds do:
+//
+// ```
+// // Move tap.extract inside the function definition:
+// A(x, y, z) = tap.extract((x + y + z : tap.T1), tap.T1);
+// process = A; // works
+//
+// // Use the group name in the UI input name
+// process = tap.extract(
+//     (hslider("h:foo/bar", 0, 0, 1, 1) : tap.T1),
+//     tap.T1
+// ); // works
+// ```
+//
+// #### Block diagram
+//
+// The resulting block diagram can potentially be quite visually messy, so when
+// developing, consider developing the expression without the final `tap.extract`
+// and then include it only once you have the rest working.
+
+
+ro = library("routes.lib");
+si = library("signals.lib");
+
+
+T1 = _, hslider("tap.lib:1", 0, 0, 1, 1) :> !;
+T2 = _, hslider("tap.lib:2", 0, 0, 1, 1) :> !;
+T3 = _, hslider("tap.lib:3", 0, 0, 1, 1) :> !;
+T4 = _, hslider("tap.lib:4", 0, 0, 1, 1) :> !;
+T5 = _, hslider("tap.lib:5", 0, 0, 1, 1) :> !;
+T6 = _, hslider("tap.lib:6", 0, 0, 1, 1) :> !;
+T7 = _, hslider("tap.lib:7", 0, 0, 1, 1) :> !;
+T8 = _, hslider("tap.lib:8", 0, 0, 1, 1) :> !;
+T9 = _, hslider("tap.lib:9", 0, 0, 1, 1) :> !;
+
+
+extract(sig, (i, rest)) = extract(extract(sig, i), rest);
+extract(sig, i) = _check(_impl(sig, i), outputs(_impl(sig, i)) - outputs(sig), i)
+with {
+    _check(extracted, 1, i) = extracted;
+    _check(extracted, 0, i) = _error_not_found(i);
+
+    _impl((y, hslider("tap.lib:1", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = y;
+    _impl((y, hslider("tap.lib:2", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = y;
+    _impl((y, hslider("tap.lib:3", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = y;
+    _impl((y, hslider("tap.lib:4", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = y;
+    _impl((y, hslider("tap.lib:5", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = y;
+    _impl((y, hslider("tap.lib:6", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = y;
+    _impl((y, hslider("tap.lib:7", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = y;
+    _impl((y, hslider("tap.lib:8", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = y;
+    _impl((y, hslider("tap.lib:9", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = y;
+
+    _impl((a, b), current_tap) = _patch_par(_impl(a, current_tap), _impl(b, current_tap)) with {
+        _patch_par(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
+            _choose(aa, bb, 1, 0) = aa, b : si.bus(outputs(a)), ro.cross1n(outputs(b));
+            _choose(aa, bb, 0, 1) = a, bb;
+            _choose(aa, bb, 0, 0) = a, b;
+            _choose(aa, bb, m, n) = _error_reuse(current_tap);
+        };
+    };
+    _impl((a : b), current_tap) = _patch_seq(_impl(a, current_tap), _impl(b, current_tap)) with {
+        _patch_seq(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
+            _choose(aa, bb, 1, 0) = aa : b, _;
+            _choose(aa, bb, 0, 1) = a : bb;
+            _choose(aa, bb, 0, 0) = a : b;
+            _choose(aa, bb, m, n) = _error_reuse(current_tap);
+        };
+    };
+    _impl((a <: b), current_tap) = _patch_spl(_impl(a, current_tap), _impl(b, current_tap)) with {
+        _patch_spl(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
+            _choose(aa, bb, 1, 0) = aa : (si.bus(outputs(a)) <: b), _;
+            _choose(aa, bb, 0, 1) = a <: bb;
+            _choose(aa, bb, 0, 0) = a <: b;
+            _choose(aa, bb, m, n) = _error_reuse(current_tap);
+        };
+    };
+    _impl((a :> b), current_tap) = _patch_mrg(_impl(a, current_tap), _impl(b, current_tap)) with {
+        _patch_mrg(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
+            _choose(aa, bb, 1, 0) = aa : (si.bus(outputs(a)) :> b), _;
+            _choose(aa, bb, 0, 1) = a :> bb;
+            _choose(aa, bb, 0, 0) = a :> b;
+            _choose(aa, bb, m, n) = _error_reuse(current_tap);
+        };
+    };
+    _impl((a ~ b), current_tap) = _patch_rec(_impl(a, current_tap), _impl(b, current_tap)) with {
+        _patch_rec(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
+            _choose(aa, bb, 1, 0) = aa ~ b;
+            _choose(aa, bb, 0, 1) = (ro.cross1n(inputs(a)) : a, _) ~ bb;
+            _choose(aa, bb, 0, 0) = a ~ b;
+            _choose(aa, bb, m, n) = _error_reuse(current_tap);
+        };
+    };
+
+    _impl(y, (_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = y;
+    _impl(y, (_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = y;
+    _impl(y, (_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = y;
+    _impl(y, (_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = y;
+    _impl(y, (_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = y;
+    _impl(y, (_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = y;
+    _impl(y, (_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = y;
+    _impl(y, (_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = y;
+    _impl(y, (_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = y;
+
+    // Use undefined variables to convey error messages
+
+    _impl(y, anything_else) = second_argument_to_extract_must_be_tap_T1_T2_etc;
+
+    _error_reuse((_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = found_tap_T1_more_than_once___use_taps_once_per_extract;
+    _error_reuse((_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = found_tap_T2_more_than_once___use_taps_once_per_extract;
+    _error_reuse((_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = found_tap_T3_more_than_once___use_taps_once_per_extract;
+    _error_reuse((_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = found_tap_T4_more_than_once___use_taps_once_per_extract;
+    _error_reuse((_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = found_tap_T5_more_than_once___use_taps_once_per_extract;
+    _error_reuse((_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = found_tap_T6_more_than_once___use_taps_once_per_extract;
+    _error_reuse((_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = found_tap_T7_more_than_once___use_taps_once_per_extract;
+    _error_reuse((_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = found_tap_T8_more_than_once___use_taps_once_per_extract;
+    _error_reuse((_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = found_tap_T9_more_than_once___use_taps_once_per_extract;
+
+    _error_not_found((_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = did_not_find_tap_T1_to_extract___check_also_for_duplicates;
+    _error_not_found((_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = did_not_find_tap_T2_to_extract___check_also_for_duplicates;
+    _error_not_found((_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = did_not_find_tap_T3_to_extract___check_also_for_duplicates;
+    _error_not_found((_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = did_not_find_tap_T4_to_extract___check_also_for_duplicates;
+    _error_not_found((_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = did_not_find_tap_T5_to_extract___check_also_for_duplicates;
+    _error_not_found((_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = did_not_find_tap_T6_to_extract___check_also_for_duplicates;
+    _error_not_found((_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = did_not_find_tap_T7_to_extract___check_also_for_duplicates;
+    _error_not_found((_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = did_not_find_tap_T8_to_extract___check_also_for_duplicates;
+    _error_not_found((_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = did_not_find_tap_T9_to_extract___check_also_for_duplicates;
+};
