@@ -103,6 +103,34 @@ declare version "0.1";
 // developing, consider developing the expression without the final `tap.extract`
 // and then include it only once you have the rest working.
 
+// -------------------------------`(tap.)persist`-------------------------------
+//
+// Like tap.extract, except it merely ensures that the taps get computed rather
+// than routing them to the output. Useful for persisting hbargraph/vbargraph
+// without manually routing to an output and then calling `attach`. The
+// implementation is just `extract` followed by `attach`, so it's required that
+// the first argument to `persist` have at least one output (so that `attach` has
+// something to work with).
+//
+// #### Usage
+//
+// ```
+// A(k) = *(k);
+//
+// complicatedExpression = _,_,_,_ : (
+//         (A(1) <: _,(hbargraph("first", 0, 1) : tap.T1)),
+//          A(2),
+//          A(3),
+//         (A(4) <: _,(hbargraph("second", 0, 1) : tap.T2)),
+//          A(5)
+//     ) ~ (_,_,_,_,_ :> _ <: _,tap.T3)
+//       : si.block(5)
+//       ;
+// process = tap.persist(
+//     tap.extract(complicatedExpression, tap.T3),
+//     (tap.T1, tap.T2)
+// );
+// ```
 
 si = library("signals.lib");
 
@@ -116,6 +144,10 @@ T6 = _, hslider("tap.lib:6", 0, 0, 1, 1) :> !;
 T7 = _, hslider("tap.lib:7", 0, 0, 1, 1) :> !;
 T8 = _, hslider("tap.lib:8", 0, 0, 1, 1) :> !;
 T9 = _, hslider("tap.lib:9", 0, 0, 1, 1) :> !;
+
+
+persist(sig, (i, rest)) = persist(persist(sig, i), rest);
+persist(sig, i) = extract(sig, i) : si.bus(outputs(sig) - 1), attach;
 
 
 extract(sig, (i, rest)) = extract(extract(sig, i), rest);
