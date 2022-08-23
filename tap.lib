@@ -120,75 +120,103 @@ T9 = _, hslider("tap.lib:9", 0, 0, 1, 1) :> !;
 
 
 extract(sig, (i, rest)) = extract(extract(sig, i), rest);
-extract(sig, i) = _check(_impl(sig, i), outputs(_impl(sig, i)) - outputs(sig), i)
+extract(sig, i) = _check(_extract(sig, i))
 with {
-    _check(extracted, 1, i) = extracted;
-    _check(extracted, 0, i) = _error_not_found(i);
-
-    _impl((y, hslider("tap.lib:1", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = y;
-    _impl((y, hslider("tap.lib:2", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = y;
-    _impl((y, hslider("tap.lib:3", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = y;
-    _impl((y, hslider("tap.lib:4", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = y;
-    _impl((y, hslider("tap.lib:5", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = y;
-    _impl((y, hslider("tap.lib:6", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = y;
-    _impl((y, hslider("tap.lib:7", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = y;
-    _impl((y, hslider("tap.lib:8", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = y;
-    _impl((y, hslider("tap.lib:9", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = y;
-
-    _impl((a, b), current_tap) = _patch_par(_impl(a, current_tap), _impl(b, current_tap)) with {
-        _patch_par(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
-            _choose(aa, bb, 1, 0) = aa, b : si.bus(outputs(a)), ro.cross1n(outputs(b));
-            _choose(aa, bb, 0, 1) = a, bb;
-            _choose(aa, bb, 0, 0) = a, b;
-            _choose(aa, bb, m, n) = _error_reuse(current_tap);
-        };
-    };
-    _impl((a : b), current_tap) = _patch_seq(_impl(a, current_tap), _impl(b, current_tap)) with {
-        _patch_seq(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
-            _choose(aa, bb, 1, 0) = aa : b, _;
-            _choose(aa, bb, 0, 1) = a : bb;
-            _choose(aa, bb, 0, 0) = a : b;
-            _choose(aa, bb, m, n) = _error_reuse(current_tap);
-        };
-    };
-    _impl((a <: b), current_tap) = _patch_spl(_impl(a, current_tap), _impl(b, current_tap)) with {
-        _patch_spl(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
-            _choose(aa, bb, 1, 0) = aa : (si.bus(outputs(a)) <: b), _;
-            _choose(aa, bb, 0, 1) = a <: bb;
-            _choose(aa, bb, 0, 0) = a <: b;
-            _choose(aa, bb, m, n) = _error_reuse(current_tap);
-        };
-    };
-    _impl((a :> b), current_tap) = _patch_mrg(_impl(a, current_tap), _impl(b, current_tap)) with {
-        _patch_mrg(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
-            _choose(aa, bb, 1, 0) = aa : (si.bus(outputs(a)) :> b), _;
-            _choose(aa, bb, 0, 1) = a :> bb;
-            _choose(aa, bb, 0, 0) = a :> b;
-            _choose(aa, bb, m, n) = _error_reuse(current_tap);
-        };
-    };
-    _impl((a ~ b), current_tap) = _patch_rec(_impl(a, current_tap), _impl(b, current_tap)) with {
-        _patch_rec(aa, bb) = _choose(aa, bb, outputs(aa) - outputs(a), outputs(bb) - outputs(b)) with {
-            _choose(aa, bb, 1, 0) = aa ~ b;
-            _choose(aa, bb, 0, 1) = (ro.cross1n(inputs(a)) : a, _) ~ bb;
-            _choose(aa, bb, 0, 0) = a ~ b;
-            _choose(aa, bb, m, n) = _error_reuse(current_tap);
-        };
+    _check(extracted) = _error_if_not_found(extracted, outputs(extracted) - outputs(sig), i) with {
+        _error_if_not_found(extracted, 1, i) = extracted;
+        _error_if_not_found(extracted, 0, i) = _error_not_found(i);
     };
 
-    _impl(y, (_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = y;
-    _impl(y, (_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = y;
-    _impl(y, (_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = y;
-    _impl(y, (_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = y;
-    _impl(y, (_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = y;
-    _impl(y, (_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = y;
-    _impl(y, (_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = y;
-    _impl(y, (_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = y;
-    _impl(y, (_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = y;
+    // Found a tap! Replace with its input
+    _extract((y, hslider("tap.lib:1", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = y;
+    _extract((y, hslider("tap.lib:2", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = y;
+    _extract((y, hslider("tap.lib:3", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = y;
+    _extract((y, hslider("tap.lib:4", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = y;
+    _extract((y, hslider("tap.lib:5", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = y;
+    _extract((y, hslider("tap.lib:6", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = y;
+    _extract((y, hslider("tap.lib:7", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = y;
+    _extract((y, hslider("tap.lib:8", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = y;
+    _extract((y, hslider("tap.lib:9", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = y;
 
-    // Use undefined variables to convey error messages
+    // Found par/seq/split/merge/rec! Recurse.
+    // ,
+    _extract((a, b), current_tap) = _choose_par(
+        _extract(a, current_tap),
+        _extract(b, current_tap),
+        outputs(_extract(a, current_tap)) - outputs(a),
+        outputs(_extract(b, current_tap)) - outputs(b)
+    ) with {
+        _choose_par(aa, bb, 1, 0) = aa, b : si.bus(outputs(a)), ro.cross1n(outputs(b));
+        _choose_par(aa, bb, 0, 1) = a, bb;
+        _choose_par(aa, bb, 0, 0) = a, b;
+        _choose_par(aa, bb, m, n) = _error_reuse(current_tap);
+    };
 
-    _impl(y, anything_else) = second_argument_to_extract_must_be_tap_T1_T2_etc;
+    // :
+    _extract((a : b), current_tap) = _choose_seq(
+        _extract(a, current_tap),
+        _extract(b, current_tap),
+        outputs(_extract(a, current_tap)) - outputs(a),
+        outputs(_extract(b, current_tap)) - outputs(b)
+    ) with {
+        _choose_seq(aa, bb, 1, 0) = aa : b, _;
+        _choose_seq(aa, bb, 0, 1) = a : bb;
+        _choose_seq(aa, bb, 0, 0) = a : b;
+        _choose_seq(aa, bb, m, n) = _error_reuse(current_tap);
+    };
+
+    // <:
+    _extract((a <: b), current_tap) = _choose_spl(
+        _extract(a, current_tap),
+        _extract(b, current_tap),
+        outputs(_extract(a, current_tap)) - outputs(a),
+        outputs(_extract(b, current_tap)) - outputs(b)
+    ) with {
+        _choose_spl(aa, bb, 1, 0) = aa : (si.bus(outputs(a)) <: b), _;
+        _choose_spl(aa, bb, 0, 1) = a <: bb;
+        _choose_spl(aa, bb, 0, 0) = a <: b;
+        _choose_spl(aa, bb, m, n) = _error_reuse(current_tap);
+    };
+
+    // :>
+    _extract((a :> b), current_tap) = _choose_mrg(
+        _extract(a, current_tap),
+        _extract(b, current_tap),
+        outputs(_extract(a, current_tap)) - outputs(a),
+        outputs(_extract(b, current_tap)) - outputs(b)
+    ) with {
+        _choose_mrg(aa, bb, 1, 0) = aa : (si.bus(outputs(a)) :> b), _;
+        _choose_mrg(aa, bb, 0, 1) = a :> bb;
+        _choose_mrg(aa, bb, 0, 0) = a :> b;
+        _choose_mrg(aa, bb, m, n) = _error_reuse(current_tap);
+    };
+
+    // ~
+    _extract((a ~ b), current_tap) = _choose_rec(
+        _extract(a, current_tap),
+        _extract(b, current_tap),
+        outputs(_extract(a, current_tap)) - outputs(a),
+        outputs(_extract(b, current_tap)) - outputs(b)
+    ) with {
+        _choose_rec(aa, bb, 1, 0) = aa ~ b;
+        _choose_rec(aa, bb, 0, 1) = (ro.cross1n(inputs(a)) : a, _) ~ bb;
+        _choose_rec(aa, bb, 0, 0) = a ~ b;
+        _choose_rec(aa, bb, m, n) = _error_reuse(current_tap);
+    };
+
+    // Found anything else! Pass it through unchanged.
+    _extract(y, (_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = y;
+
+    // Something bad in the second argument! (i.e. not T1, T2, T3, ...). Error.
+    _extract(y, anything_else) = second_argument_to_extract_must_be_tap_T1_T2_etc;
 
     _error_reuse((_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = found_tap_T1_more_than_once___use_taps_once_per_extract;
     _error_reuse((_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = found_tap_T2_more_than_once___use_taps_once_per_extract;
