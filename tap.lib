@@ -134,17 +134,17 @@ declare version "0.1";
 
 si = library("signals.lib");
 
+namedTap(n) = _, (hslider("tap.lib", 0, 0, 1, 1) : n) :> !;
 
-T1 = _, hslider("tap.lib:1", 0, 0, 1, 1) :> !;
-T2 = _, hslider("tap.lib:2", 0, 0, 1, 1) :> !;
-T3 = _, hslider("tap.lib:3", 0, 0, 1, 1) :> !;
-T4 = _, hslider("tap.lib:4", 0, 0, 1, 1) :> !;
-T5 = _, hslider("tap.lib:5", 0, 0, 1, 1) :> !;
-T6 = _, hslider("tap.lib:6", 0, 0, 1, 1) :> !;
-T7 = _, hslider("tap.lib:7", 0, 0, 1, 1) :> !;
-T8 = _, hslider("tap.lib:8", 0, 0, 1, 1) :> !;
-T9 = _, hslider("tap.lib:9", 0, 0, 1, 1) :> !;
-
+T1 = namedTap(tgroup("tap.T1", _));
+T2 = namedTap(tgroup("tap.T2", _));
+T3 = namedTap(tgroup("tap.T3", _));
+T4 = namedTap(tgroup("tap.T4", _));
+T5 = namedTap(tgroup("tap.T5", _));
+T6 = namedTap(tgroup("tap.T6", _));
+T7 = namedTap(tgroup("tap.T7", _));
+T8 = namedTap(tgroup("tap.T8", _));
+T9 = namedTap(tgroup("tap.T9", _));
 
 persist(sig, (i, rest)) = persist(persist(sig, i), rest);
 persist(sig, i) = extract(sig, i) : si.bus(outputs(sig) - 1), attach;
@@ -158,16 +158,8 @@ with {
         _error_if_not_found(extracted, 0, i) = _error_not_found(i);
     };
 
-    // Found a tap! Replace with its input
-    _extract((y, hslider("tap.lib:1", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = y;
-    _extract((y, hslider("tap.lib:2", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = y;
-    _extract((y, hslider("tap.lib:3", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = y;
-    _extract((y, hslider("tap.lib:4", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = y;
-    _extract((y, hslider("tap.lib:5", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = y;
-    _extract((y, hslider("tap.lib:6", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = y;
-    _extract((y, hslider("tap.lib:7", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = y;
-    _extract((y, hslider("tap.lib:8", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = y;
-    _extract((y, hslider("tap.lib:9", 0, 0, 1, 1) :> !), (_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = y;
+    // Found a tap! Replace with its input. Add a dummy tgroup that shows up in the box diagram.
+    _extract((y, (hslider("tap.lib", 0, 0, 1, 1) : n) :> !), (_, (hslider("tap.lib", 0, 0, 1, 1) : n) :> !)) = y : n;
 
     // Found par/seq/split/merge/rec! Recurse.
     // ,
@@ -175,15 +167,23 @@ with {
         _extract(a, current_tap),
         _extract(b, current_tap),
         outputs(_extract(a, current_tap)) - outputs(a),
-        outputs(_extract(b, current_tap)) - outputs(b)
+        outputs(_extract(b, current_tap)) - outputs(b),
+        outputs(a), // pass this in to simplify block diagram if it's 0
+        outputs(b) // number of wires to skip if we extract from a
     ) with {
-        _choose_par(aa, bb, 1, 0) = aa, b
+        // don't clutter with si.bus(0) = 0:! if outputs(a) == 0
+        _choose_par(aa, bb, 1, 0, 0, _to_skip) =
+            aa, b
+            // Like ro.cross1n, but without the indirection so we avoid cluttering the box diagram
+            : route(_to_skip+1, _to_skip+1, par(i, _to_skip+1, (i+1, (_to_skip+i)%(_to_skip+1)+1)));
+        _choose_par(aa, bb, 1, 0, _else, _to_skip) =
+            aa, b
             : si.bus(outputs(a))
                 // Like ro.cross1n, but without the indirection so we avoid cluttering the box diagram
-              , route(outputs(b)+1, outputs(b)+1, (1, outputs(b)+1), par(i, outputs(b), (i+2, i+1)));
-        _choose_par(aa, bb, 0, 1) = a, bb;
-        _choose_par(aa, bb, 0, 0) = a, b;
-        _choose_par(aa, bb, m, n) = _error_reuse(current_tap);
+              , route(_to_skip+1, _to_skip+1, par(i, _to_skip+1, (i+1, (_to_skip+i)%(_to_skip+1)+1)));
+        _choose_par(aa, bb, 0, 1, _unused1, _unused2) = a, bb;
+        _choose_par(aa, bb, 0, 0, _unused1, _unused2) = a, b;
+        _choose_par(aa, bb, m, n, _unused1, _unused2) = _error_reuse(current_tap);
     };
 
     // :
@@ -230,48 +230,27 @@ with {
         _extract(a, current_tap),
         _extract(b, current_tap),
         outputs(_extract(a, current_tap)) - outputs(a),
-        outputs(_extract(b, current_tap)) - outputs(b)
+        outputs(_extract(b, current_tap)) - outputs(b),
+        inputs(a) - outputs(b) // number of wires to cross if we extract from b
     ) with {
-        _choose_rec(aa, bb, 1, 0) = aa ~ b;
-        _choose_rec(aa, bb, 0, 1) = (
+        _choose_rec(aa, bb, 1, 0, _unused) = aa ~ b;
+        _choose_rec(aa, bb, 0, 1, _to_skip) = (
+            si.bus(outputs(b)),
             // like ro.cross1n, but we don't do indirection, so that it doesn't show up in the box diagram
-            route(inputs(a)+1, inputs(a)+1, (1, inputs(a)+1), par(i, inputs(a), (i+2, i+1)))
+            route(_to_skip+1, _to_skip+1, par(i, _to_skip+1, (i+1, (_to_skip+i)%(_to_skip+1)+1)))
             : a, _) ~ bb;
-        _choose_rec(aa, bb, 0, 0) = a ~ b;
-        _choose_rec(aa, bb, m, n) = _error_reuse(current_tap);
+        _choose_rec(aa, bb, 0, 0, _unused) = a ~ b;
+        _choose_rec(aa, bb, m, n, _unused) = _error_reuse(current_tap);
     };
 
     // Found anything else! Pass it through unchanged.
-    _extract(y, (_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = y;
-    _extract(y, (_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = y;
-    _extract(y, (_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = y;
-    _extract(y, (_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = y;
-    _extract(y, (_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = y;
-    _extract(y, (_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = y;
-    _extract(y, (_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = y;
-    _extract(y, (_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = y;
-    _extract(y, (_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = y;
+    _extract(y, (_, (hslider("tap.lib", 0, 0, 1, 1) : n) :> !)) = y;
 
     // Something bad in the second argument! (i.e. not T1, T2, T3, ...). Error.
-    _extract(y, anything_else) = second_argument_to_extract_must_be_tap_T1_T2_etc;
+    _extract(y, anything_else) = _error_bad_arg(anything_else);
+    _error_bad_arg(0) = !:tgroup("Error: expected a tap (e.g. tap.T1, tap.T2, etc), found something else.", _);
 
-    _error_reuse((_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = found_tap_T1_more_than_once___use_taps_once_per_extract;
-    _error_reuse((_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = found_tap_T2_more_than_once___use_taps_once_per_extract;
-    _error_reuse((_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = found_tap_T3_more_than_once___use_taps_once_per_extract;
-    _error_reuse((_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = found_tap_T4_more_than_once___use_taps_once_per_extract;
-    _error_reuse((_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = found_tap_T5_more_than_once___use_taps_once_per_extract;
-    _error_reuse((_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = found_tap_T6_more_than_once___use_taps_once_per_extract;
-    _error_reuse((_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = found_tap_T7_more_than_once___use_taps_once_per_extract;
-    _error_reuse((_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = found_tap_T8_more_than_once___use_taps_once_per_extract;
-    _error_reuse((_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = found_tap_T9_more_than_once___use_taps_once_per_extract;
+    _error_reuse(0) = !:tgroup("Error: used the same tap more than once (the following argument list in the error message will show which one.)", _);
 
-    _error_not_found((_, hslider("tap.lib:1", 0, 0, 1, 1) :> !)) = did_not_find_tap_T1_to_extract___check_also_for_duplicates;
-    _error_not_found((_, hslider("tap.lib:2", 0, 0, 1, 1) :> !)) = did_not_find_tap_T2_to_extract___check_also_for_duplicates;
-    _error_not_found((_, hslider("tap.lib:3", 0, 0, 1, 1) :> !)) = did_not_find_tap_T3_to_extract___check_also_for_duplicates;
-    _error_not_found((_, hslider("tap.lib:4", 0, 0, 1, 1) :> !)) = did_not_find_tap_T4_to_extract___check_also_for_duplicates;
-    _error_not_found((_, hslider("tap.lib:5", 0, 0, 1, 1) :> !)) = did_not_find_tap_T5_to_extract___check_also_for_duplicates;
-    _error_not_found((_, hslider("tap.lib:6", 0, 0, 1, 1) :> !)) = did_not_find_tap_T6_to_extract___check_also_for_duplicates;
-    _error_not_found((_, hslider("tap.lib:7", 0, 0, 1, 1) :> !)) = did_not_find_tap_T7_to_extract___check_also_for_duplicates;
-    _error_not_found((_, hslider("tap.lib:8", 0, 0, 1, 1) :> !)) = did_not_find_tap_T8_to_extract___check_also_for_duplicates;
-    _error_not_found((_, hslider("tap.lib:9", 0, 0, 1, 1) :> !)) = did_not_find_tap_T9_to_extract___check_also_for_duplicates;
+    _error_not_found(0) = !:tgroup("Error: could not find the requested tap to extract (the following argument list will show which one.)", _);
 };
