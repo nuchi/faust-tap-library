@@ -59,15 +59,25 @@ declare version "0.1";
 // have four inputs and three outputs (in the same order as the second argument to
 // tap.extract).
 //
+// #### Named taps
+//
+// There are pre-defined taps `tap.T1`, ..., `tap.T9`. If you need more than that
+// in a single `tap.extract` call, you can define your own with `tap.namedTap`,
+// though you need to carefully follow the required syntax:
+//
+// ```
+// myTap = tap.namedTap(tgroup("my custom tap", _));
+//
+// process = tap.extract(
+//     (_ <: myTap, _)
+// , myTap);
+// ```
+//
 // #### Limitations
 //
-// There are up to 9 taps available per `tap.extract` call, i.e. `tap.T1`,
-// `tap.T2`, and up through `tap.T9`. There's no reason to have to stop at 9,
-// except that each involves manual code duplication so I chose that point
-// arbitrarily. They can be duplicated across different `tap.extract` calls.
-//
 // Each tap can only take a single wire input, i.e. does not handle a bus of more
-// than one signal.
+// than one signal. You can use `par` to create a parallel bus of taps, though,
+// see the example above.
 //
 // Some kinds of Faust expressions can't be extracted through. Functions with
 // parameters are opaque to tap.extract, and likewise hgroup/vgroup/tgroup, so the
@@ -102,7 +112,7 @@ declare version "0.1";
 // The resulting block diagram can potentially be quite visually messy, so when
 // developing, consider developing the expression without the final `tap.extract`
 // and then include it only once you have the rest working.
-
+//
 // -------------------------------`(tap.)persist`-------------------------------
 //
 // Like tap.extract, except it merely ensures that the taps get computed rather

@@ -23,7 +23,13 @@ process = tap.extract(complicatedExpression, (tap.T1, tap.T2, tap.T3));
 ```
 Each tap.T1, tap.T2, etc functions as a named !, i.e. has one input and zero outputs. When an expression is wrapped with tap.extract, the inputs to the T's get routed to the outputs of the expression (after any existing outputs).
 
-In the above example, `complicatedExpression` has four inputs and zero outputs. Extracting the three taps (tap.T1, tap.T2, tap.T3) means that `process` will have four inputs and three outputs (in the same order as the second argument to tap.extract). Scroll down to the bottom to see the generated block diagram.
+In the above example, `complicatedExpression` has four inputs and zero outputs. Extracting the three taps (tap.T1, tap.T2, tap.T3) means that `process` will have four inputs and three outputs (in the same order as the second argument to tap.extract).
+
+<details><summary>Block diagram</summary>
+
+![Block diagram for extracted complicatedExpression](./extract.svg)
+
+</details>
 
 #### `tap.persist` usage
 
@@ -54,11 +60,51 @@ process = tap.persist(
 );
 ```
 
+<details><summary>Block diagram</summary>
+
+![Block diagram for persisted complicatedExpression](./persist.svg)
+
+</details>
+
+#### Named taps
+
+There are pre-defined taps `tap.T1`, ..., `tap.T9`. If you need more than that in a single `tap.extract` call, you can define your own with `tap.namedTap`, though you need to carefully follow the required syntax:
+
+```faust
+tap = library("tap.lib");
+
+myTap = tap.namedTap(tgroup("my custom tap", _));
+
+process = tap.extract(
+    (_ <: myTap, _)
+, myTap);
+```
+
+<details><summary>Block diagram</summary>
+
+![Block diagram for custom tap 1](./custom-tap-1.svg)
+
+</details>
+
+```faust
+tap = library("tap.lib");
+
+myTaps = par(i, 10, tap.namedTap(tgroup("my custom tap %i", _)));
+
+process = tap.extract(
+    (_ <: myTaps, _)
+, myTaps);
+```
+
+<details><summary>Block diagram</summary>
+
+![Block diagram for custom taps](./custom-tap-2.svg)
+
+</details>
+
 #### Limitations
 
-There are up to 9 taps available per `tap.extract`/`tap.persist` call, i.e. `tap.T1`, `tap.T2`, and up through `tap.T9`. There's no reason to have to stop at 9, except that each involves manual code duplication so I chose that point arbitrarily. They can be duplicated across different `tap.extract`/`tap.persist` calls.
-
-Each tap can only take a single wire input, i.e. does not handle a bus of more than one signal.
+Each tap can only take a single wire input, i.e. does not handle a bus of more than one signal. You can use `par` to create a parallel bus of taps, though, see the example above.
 
 Some kinds of Faust expressions can't be extracted through. Functions with parameters are opaque to tap.extract, and likewise hgroup/vgroup/tgroup, so the following don't work:
 
@@ -89,9 +135,3 @@ process = tap.extract(
 #### Block diagram
 
 The resulting block diagram can potentially be quite visually messy, so when developing, consider developing the expression without the final `tap.extract` and then include it only once you have the rest working.
-
-This is the block diagram for the first example on this page:
-![Block diagram for extracted complicatedExpression](./extract.svg)
-
-This is the block diagram for the second example on this page:
-![Block diagram for extracted complicatedExpression](./persist.svg)
